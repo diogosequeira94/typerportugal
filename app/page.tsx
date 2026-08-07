@@ -54,6 +54,8 @@ const specs = [
 export default function Home() {
   const [filter, setFilter] = useState("Todos");
   const [communityCars, setCommunityCars] = useState<CarCard[]>([]);
+  const [accountLabel, setAccountLabel] = useState("Entrar");
+  const [pendingMembers, setPendingMembers] = useState(0);
   const supabase = useMemo(() => createClient(), []);
   const allCars = [...cars, ...communityCars];
   const visibleCars = filter === "Todos" ? allCars : allCars.filter((car) => car.code === filter);
@@ -76,6 +78,18 @@ export default function Home() {
       });
   }, [supabase]);
 
+  useEffect(() => {
+    if (!supabase) return;
+    void supabase.auth.getUser().then(async ({ data }) => {
+      const user = data.user;
+      if (!user) return;
+      setAccountLabel("Área de membros");
+      if (user.app_metadata?.role !== "admin") return;
+      const { count } = await supabase.from("member_profiles").select("id", { count: "exact", head: true }).eq("status", "pending");
+      setPendingMembers(count ?? 0);
+    });
+  }, [supabase]);
+
   return (
     <main>
       <nav className="nav">
@@ -84,7 +98,7 @@ export default function Home() {
           <span>TYPE R <em>GARAGE</em><small>PORTUGAL</small></span>
         </a>
         <div className="nav-links"><a href="#garage">Garagem</a><a href="#story">O clube</a><a href="#join">Junta-te a nós</a></div>
-        <Link className="menu-button" href="/login">Entrar <span>↗</span></Link>
+        <Link className="menu-button" href={accountLabel === "Entrar" ? "/login" : "/dashboard"}>{accountLabel}{pendingMembers > 0 && <b className="notification-badge" aria-label={`${pendingMembers} pedidos pendentes`}>{pendingMembers}</b>} <span>↗</span></Link>
       </nav>
 
       <section className="hero" id="top">
