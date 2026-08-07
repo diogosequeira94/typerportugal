@@ -16,6 +16,16 @@ Os valores estão em **Supabase → Project Settings → API Keys**. Para desenv
 
 O schema ativa Row Level Security: cada membro só pode alterar os próprios carros e fotografias; visitantes apenas conseguem consultar carros publicados.
 
+### Aprovação de membros e carros
+
+- O registo pede o número de WhatsApp e cria a conta como **Pendente**.
+- O administrador compara o número com os membros do grupo e aprova ou rejeita o pedido no painel.
+- Apenas membros aprovados conseguem submeter carros e fotografias.
+- Carros novos e alterações feitas pelos proprietários ficam **Pendentes** até o administrador os aprovar e publicar.
+- Rejeitar o acesso de um membro retira os carros desse membro da área pública.
+
+Sempre que este ficheiro de schema for atualizado, pode ser executado novamente no SQL Editor para aplicar as novas políticas.
+
 ### Promover a conta mestra
 
 Cria primeiro a tua conta normalmente no site. Depois executa no **SQL Editor** do Supabase, substituindo o email:

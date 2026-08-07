@@ -6,24 +6,26 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Photo = { id: string; storage_path: string; public_url: string; position: number };
+type ReviewStatus = "pending" | "published" | "rejected";
 type Car = {
   id: string; owner_id: string; slug: string; owner_name: string; model: string;
   generation: string; year: number; color: string; power_cv: number; torque_nm: number | null;
   transmission: string; location: string | null; description: string | null;
-  instagram: string | null; facebook: string | null; status: "draft" | "published";
+  instagram: string | null; facebook: string | null; status: ReviewStatus;
   cover_image_url: string | null; car_photos: Photo[];
 };
+type MemberProfile = { id: string; email: string; name: string; whatsapp: string; status: "pending" | "approved" | "rejected"; created_at: string };
 
 type FormState = {
   owner_name: string; model: string; generation: string; year: string; color: string;
   power_cv: string; torque_nm: string; transmission: string; location: string;
-  description: string; instagram: string; facebook: string; status: "draft" | "published";
+  description: string; instagram: string; facebook: string; status: ReviewStatus;
 };
 
 const emptyForm = (name: string): FormState => ({
   owner_name: name, model: "Civic Type R", generation: "", year: "", color: "",
   power_cv: "", torque_nm: "", transmission: "Manual de 6 velocidades", location: "",
-  description: "", instagram: "", facebook: "", status: "draft",
+  description: "", instagram: "", facebook: "", status: "pending",
 });
 
 function slugify(value: string) {
@@ -35,6 +37,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [cars, setCars] = useState<Car[]>([]);
+  const [members, setMembers] = useState<MemberProfile[]>([]);
   const [editing, setEditing] = useState<Car | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm(user.name));
   const [files, setFiles] = useState<File[]>([]);
@@ -52,6 +55,13 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
     setCars((data as Car[]) ?? []);
   }, [supabase, user.id, user.isAdmin]);
 
+  const loadMembers = useCallback(async () => {
+    if (!supabase || !user.isAdmin) return;
+    const { data, error } = await supabase.from("member_profiles").select("*").neq("id", user.id).order("created_at", { ascending: false });
+    if (error) return setMessage(error.message);
+    setMembers((data as MemberProfile[]) ?? []);
+  }, [supabase, user.id, user.isAdmin]);
+
   useEffect(() => {
     if (!supabase) return;
     let query = supabase.from("cars").select("*, car_photos(*)").order("created_at", { ascending: false });
@@ -61,6 +71,14 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
         if (error) setMessage(error.message);
         else setCars((data as Car[]) ?? []);
       });
+  }, [supabase, user.id, user.isAdmin]);
+
+  useEffect(() => {
+    if (!supabase || !user.isAdmin) return;
+    void supabase.from("member_profiles").select("*").neq("id", user.id).order("created_at", { ascending: false }).then(({ data, error }) => {
+      if (error) setMessage(error.message);
+      else setMembers((data as MemberProfile[]) ?? []);
+    });
   }, [supabase, user.id, user.isAdmin]);
 
   function updateField(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
@@ -115,7 +133,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
         power_cv: Number(form.power_cv), torque_nm: form.torque_nm ? Number(form.torque_nm) : null,
         transmission: form.transmission.trim(), location: form.location.trim() || null,
         description: form.description.trim() || null, instagram: form.instagram.trim().replace(/^@/, "") || null,
-        facebook: form.facebook.trim() || null, status: form.status,
+        facebook: form.facebook.trim() || null, status: user.isAdmin ? form.status : "pending",
       };
       let carId = editing?.id;
       if (editing) {
@@ -136,7 +154,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
         const { error } = await query;
         if (error) throw error;
       }
-      resetForm(); await loadCars(); setMessage("Carro guardado com sucesso.");
+      resetForm(); await loadCars(); setMessage(user.isAdmin ? "Carro guardado com sucesso." : "Submissão enviada para aprovação do administrador.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível guardar o carro.");
     } finally { setSaving(false); }
@@ -157,6 +175,10 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
 
   async function deletePhoto(photo: Photo, car: Car) {
     if (!supabase || !window.confirm("Remover esta fotografia?")) return;
+    if (!user.isAdmin && car.status !== "pending") {
+      const { error: reviewError } = await supabase.from("cars").update({ status: "pending" }).eq("id", car.id).eq("owner_id", user.id);
+      if (reviewError) return setMessage(reviewError.message);
+    }
     const { error: storageError } = await supabase.storage.from("car-photos").remove([photo.storage_path]);
     if (storageError) return setMessage(storageError.message);
     let deleteQuery = supabase.from("car_photos").delete().eq("id", photo.id);
@@ -170,23 +192,44 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
       await coverQuery;
     }
     await loadCars();
+    if (!user.isAdmin) setMessage("Fotografia removida. O carro voltou a ficar pendente para revisão.");
   }
 
   async function signOut() {
     await supabase?.auth.signOut(); router.push("/"); router.refresh();
   }
 
+  async function updateMemberStatus(member: MemberProfile, status: MemberProfile["status"]) {
+    if (!supabase || !user.isAdmin) return;
+    setMessage("");
+    const { error } = await supabase.from("member_profiles").update({ status }).eq("id", member.id);
+    if (error) return setMessage(error.message);
+    if (status !== "approved") await supabase.from("cars").update({ status: "pending" }).eq("owner_id", member.id);
+    await Promise.all([loadMembers(), loadCars()]);
+    setMessage(status === "approved" ? `${member.name} foi aprovado como membro.` : `O acesso de ${member.name} foi recusado.`);
+  }
+
+  async function updateCarStatus(car: Car, status: ReviewStatus) {
+    if (!supabase || !user.isAdmin) return;
+    const { error } = await supabase.from("cars").update({ status }).eq("id", car.id);
+    if (error) return setMessage(error.message);
+    await loadCars();
+    setMessage(status === "published" ? "Carro aprovado e publicado." : "Submissão marcada como rejeitada.");
+  }
+
+  const carStatusLabel: Record<ReviewStatus, string> = { pending: "Pendente", published: "Publicado", rejected: "Rejeitado" };
+
   return <main className="dashboard-page">
     <nav className="dashboard-nav"><Link className="brand" href="/"><span className="brand-mark">R</span><span>TYPE R <em>GARAGE</em><small>PORTUGAL</small></span></Link><div>{user.isAdmin && <b className="admin-badge">Administrador</b>}<span>{user.email}</span><button onClick={signOut}>Sair</button></div></nav>
-    <header className="dashboard-header"><div><p className="eyebrow"><span /> {user.isAdmin ? "Administração" : "Área de membros"}</p><h1>{user.isAdmin ? <>GESTÃO DA <i>GARAGEM.</i></> : <>A MINHA <i>GARAGEM.</i></>}</h1></div><p>{user.isAdmin ? "Consulta, edita e remove qualquer carro submetido pela comunidade." : "Adiciona os teus carros, mantém os detalhes atualizados e decide quando ficam públicos."}</p></header>
+    <header className="dashboard-header"><div><p className="eyebrow"><span /> {user.isAdmin ? "Administração" : "Área de membros"}</p><h1>{user.isAdmin ? <>GESTÃO DA <i>GARAGEM.</i></> : <>A MINHA <i>GARAGEM.</i></>}</h1></div><p>{user.isAdmin ? "Aprova membros do grupo, revê submissões e gere todos os carros da comunidade." : "Adiciona os teus carros e mantém os detalhes atualizados. As submissões são revistas antes da publicação."}</p></header>
     <div className="dashboard-grid">
       <section className="car-editor"><div className="editor-title"><div><p className="eyebrow"><span /> {editing ? "Editar carro" : "Novo carro"}</p><h2>{editing ? `${editing.generation} · ${editing.model}` : "ADICIONAR CARRO"}</h2></div>{editing && <button onClick={resetForm}>Cancelar</button>}</div>
         <form onSubmit={saveCar}>
-          <div className="form-grid"><label>Nome do proprietário<input name="owner_name" required value={form.owner_name} onChange={updateField} /></label><label>Geração<input name="generation" required placeholder="FK8" value={form.generation} onChange={updateField} /></label><label className="wide">Modelo<input name="model" required value={form.model} onChange={updateField} /></label><label>Ano<input name="year" required type="number" min="1997" max="2035" value={form.year} onChange={updateField} /></label><label>Cor<input name="color" required placeholder="Championship White" value={form.color} onChange={updateField} /></label><label>Potência (CV)<input name="power_cv" required type="number" min="1" value={form.power_cv} onChange={updateField} /></label><label>Binário (Nm)<input name="torque_nm" type="number" min="1" value={form.torque_nm} onChange={updateField} /></label><label className="wide">Transmissão<input name="transmission" required value={form.transmission} onChange={updateField} /></label><label className="wide">Localização<input name="location" placeholder="Centro (Lisboa)" value={form.location} onChange={updateField} /></label><label>Instagram<input name="instagram" placeholder="nome.utilizador" value={form.instagram} onChange={updateField} /></label><label>Facebook (opcional)<input name="facebook" placeholder="https://facebook.com/..." value={form.facebook} onChange={updateField} /></label><label className="wide">Descrição<textarea name="description" rows={5} value={form.description} onChange={updateField} /></label><label className="wide">Fotografias<input type="file" accept="image/*" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 8))} /><small>Até 8 imagens de 8 MB cada. As novas fotos são adicionadas às existentes.</small></label><label className="wide">Visibilidade<select name="status" value={form.status} onChange={updateField}><option value="draft">Rascunho — só eu vejo</option><option value="published">Publicado — visível na comunidade</option></select></label></div>
+          <div className="form-grid"><label>Nome do proprietário<input name="owner_name" required value={form.owner_name} onChange={updateField} /></label><label>Geração<input name="generation" required placeholder="FK8" value={form.generation} onChange={updateField} /></label><label className="wide">Modelo<input name="model" required value={form.model} onChange={updateField} /></label><label>Ano<input name="year" required type="number" min="1997" max="2035" value={form.year} onChange={updateField} /></label><label>Cor<input name="color" required placeholder="Championship White" value={form.color} onChange={updateField} /></label><label>Potência (CV)<input name="power_cv" required type="number" min="1" value={form.power_cv} onChange={updateField} /></label><label>Binário (Nm)<input name="torque_nm" type="number" min="1" value={form.torque_nm} onChange={updateField} /></label><label className="wide">Transmissão<input name="transmission" required value={form.transmission} onChange={updateField} /></label><label className="wide">Localização<input name="location" placeholder="Centro (Lisboa)" value={form.location} onChange={updateField} /></label><label>Instagram<input name="instagram" placeholder="nome.utilizador" value={form.instagram} onChange={updateField} /></label><label>Facebook (opcional)<input name="facebook" placeholder="https://facebook.com/..." value={form.facebook} onChange={updateField} /></label><label className="wide">Descrição<textarea name="description" rows={5} value={form.description} onChange={updateField} /></label><label className="wide">Fotografias<input type="file" accept="image/*" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 8))} /><small>Até 8 imagens de 8 MB cada. As novas fotos são adicionadas às existentes.</small></label>{user.isAdmin ? <label className="wide">Estado<select name="status" value={form.status} onChange={updateField}><option value="pending">Pendente</option><option value="published">Publicado</option><option value="rejected">Rejeitado</option></select></label> : <p className="submission-note wide">Os carros novos e todas as alterações são enviados para aprovação antes de aparecerem publicamente.</p>}</div>
           {message && <p className="form-message" role="status">{message}</p>}<button className="primary account-primary" disabled={saving}>{saving ? "A guardar…" : editing ? "Guardar alterações" : "Adicionar à garagem"}<span>→</span></button>
         </form>
       </section>
-      <section className="member-cars"><p className="eyebrow"><span /> {user.isAdmin ? "Todos os carros" : "Os meus carros"}</p>{loading ? <p className="empty-cars">A carregar…</p> : cars.length === 0 ? <p className="empty-cars">Ainda não existem carros nesta garagem.</p> : cars.map((car) => <article className="member-car" key={car.id}><div className="member-car-image" style={{ backgroundImage: car.cover_image_url ? `url(${car.cover_image_url})` : undefined }}><span>{car.status === "published" ? "Publicado" : "Rascunho"}</span></div><div className="member-car-copy"><small>{car.year} · {car.color}{user.isAdmin ? ` · ${car.owner_name}` : ""}</small><h3>{car.generation} · {car.model}</h3><p>{car.power_cv} CV{car.location ? ` · ${car.location}` : ""}</p><div className="member-actions"><button onClick={() => startEdit(car)}>Editar</button>{car.status === "published" && <Link href={`/garage/${car.slug}`}>Ver perfil ↗</Link>}<button className="danger" onClick={() => deleteCar(car)}>Remover</button></div>{car.car_photos?.length > 0 && <div className="photo-strip">{car.car_photos.sort((a,b) => a.position - b.position).map((photo) => <button title="Remover fotografia" onClick={() => deletePhoto(photo, car)} key={photo.id} style={{ backgroundImage: `url(${photo.public_url})` }}><span>×</span></button>)}</div>}</div></article>)}</section>
+      <section className="member-cars">{user.isAdmin && <div className="member-requests"><p className="eyebrow"><span /> Pedidos de adesão</p>{members.length === 0 ? <p className="empty-cars">Ainda não existem pedidos.</p> : members.map((member) => <article key={member.id}><div><b>{member.name}</b><span>{member.email}</span><span>{member.whatsapp || "Sem número de WhatsApp"}</span></div><small className={`member-status ${member.status}`}>{member.status === "approved" ? "Aprovado" : member.status === "rejected" ? "Rejeitado" : "Pendente"}</small><div><button onClick={() => updateMemberStatus(member, "approved")}>Aprovar</button><button className="danger" onClick={() => updateMemberStatus(member, "rejected")}>Rejeitar</button></div></article>)}</div>}<p className="eyebrow"><span /> {user.isAdmin ? "Submissões de carros" : "Os meus carros"}</p>{loading ? <p className="empty-cars">A carregar…</p> : cars.length === 0 ? <p className="empty-cars">Ainda não existem carros nesta garagem.</p> : cars.map((car) => <article className="member-car" key={car.id}><div className="member-car-image" style={{ backgroundImage: car.cover_image_url ? `url(${car.cover_image_url})` : undefined }}><span className={car.status}>{carStatusLabel[car.status]}</span></div><div className="member-car-copy"><small>{car.year} · {car.color}{user.isAdmin ? ` · ${car.owner_name}` : ""}</small><h3>{car.generation} · {car.model}</h3><p>{car.power_cv} CV{car.location ? ` · ${car.location}` : ""}</p><div className="member-actions">{user.isAdmin && car.status !== "published" && <button className="approve" onClick={() => updateCarStatus(car, "published")}>Aprovar e publicar</button>}{user.isAdmin && car.status !== "rejected" && <button onClick={() => updateCarStatus(car, "rejected")}>Rejeitar</button>}<button onClick={() => startEdit(car)}>Editar</button>{car.status === "published" && <Link href={`/garage/${car.slug}`}>Ver perfil ↗</Link>}<button className="danger" onClick={() => deleteCar(car)}>Remover</button></div>{car.car_photos?.length > 0 && <div className="photo-strip">{[...car.car_photos].sort((a,b) => a.position - b.position).map((photo) => <button title="Remover fotografia" onClick={() => deletePhoto(photo, car)} key={photo.id} style={{ backgroundImage: `url(${photo.public_url})` }}><span>×</span></button>)}</div>}</div></article>)}</section>
     </div>
   </main>;
 }

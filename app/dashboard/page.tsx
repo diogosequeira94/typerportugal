@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import DashboardClient from "./DashboardClient";
+import MembershipGate from "./MembershipGate";
 
 export const dynamic = "force-dynamic";
 
@@ -15,5 +16,11 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase!.auth.getUser();
   if (!user) redirect("/login?next=/dashboard");
 
-  return <DashboardClient user={{ id: user.id, email: user.email ?? "", name: String(user.user_metadata?.name ?? "Membro Type R"), isAdmin: user.app_metadata?.role === "admin" }} />;
+  const isAdmin = user.app_metadata?.role === "admin";
+  const { data: profile } = await supabase!.from("member_profiles").select("status").eq("id", user.id).maybeSingle();
+  if (!isAdmin && profile?.status !== "approved") {
+    return <MembershipGate status={profile?.status === "rejected" ? "rejected" : "pending"} email={user.email ?? ""} />;
+  }
+
+  return <DashboardClient user={{ id: user.id, email: user.email ?? "", name: String(user.user_metadata?.name ?? "Membro Type R"), isAdmin }} />;
 }
