@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import UpcomingEvents from "./components/UpcomingEvents";
+import { createClient } from "@/lib/supabase/client";
 
-const cars = [
+type CarCard = { code: string; slug: string; name: string; owner: string; years: string; power: string; color: string; image: string; lead?: boolean };
+
+const cars: CarCard[] = [
   {
     code: "FK8",
+    slug: "fk8",
     name: "Civic Type R FK8",
     owner: "O carro do Diogo",
     years: "2017–2021 · Pre-facelift",
@@ -18,6 +22,7 @@ const cars = [
   },
   {
     code: "FK2",
+    slug: "fk2",
     name: "Civic Type R FK2",
     owner: "Destaque da garagem",
     years: "2015–2017",
@@ -28,6 +33,7 @@ const cars = [
   },
   {
     code: "FL5",
+    slug: "fl5",
     name: "Civic Type R FL5",
     owner: "Destaque da garagem",
     years: "2023–presente",
@@ -47,7 +53,28 @@ const specs = [
 
 export default function Home() {
   const [filter, setFilter] = useState("Todos");
-  const visibleCars = filter === "Todos" ? cars : cars.filter((car) => car.code === filter);
+  const [communityCars, setCommunityCars] = useState<CarCard[]>([]);
+  const supabase = useMemo(() => createClient(), []);
+  const allCars = [...cars, ...communityCars];
+  const visibleCars = filter === "Todos" ? allCars : allCars.filter((car) => car.code === filter);
+
+  useEffect(() => {
+    if (!supabase) return;
+    void supabase.from("cars").select("slug, owner_name, model, generation, year, power_cv, color, cover_image_url")
+      .eq("status", "published").order("created_at", { ascending: false }).then(({ data }) => {
+        if (!data) return;
+        setCommunityCars(data.map((car) => ({
+          code: car.generation,
+          slug: car.slug,
+          name: car.model,
+          owner: `O carro de ${car.owner_name}`,
+          years: String(car.year),
+          power: `${car.power_cv} CV`,
+          color: car.color,
+          image: car.cover_image_url || "/cars/fk8.jpg",
+        })));
+      });
+  }, [supabase]);
 
   return (
     <main>
@@ -57,7 +84,7 @@ export default function Home() {
           <span>TYPE R <em>GARAGE</em><small>PORTUGAL</small></span>
         </a>
         <div className="nav-links"><a href="#garage">Garagem</a><a href="#story">O clube</a><a href="#join">Junta-te a nós</a></div>
-        <a className="menu-button" href="#garage">Explorar carros <span>↗</span></a>
+        <Link className="menu-button" href="/login">Entrar <span>↗</span></Link>
       </nav>
 
       <section className="hero" id="top">
@@ -81,8 +108,8 @@ export default function Home() {
           {["Todos", "FK2", "FK8", "FL5"].map((item) => <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item}</button>)}
         </div>
         <div className="car-grid">
-          {visibleCars.map((car) => <article className={`car-card ${car.lead ? "featured" : ""}`} key={car.code}>
-            <Link className="car-card-link" href={`/garage/${car.code.toLowerCase()}`} aria-label={`Ver ${car.name}`}>
+          {visibleCars.map((car) => <article className={`car-card ${car.lead ? "featured" : ""}`} key={car.slug}>
+            <Link className="car-card-link" href={`/garage/${car.slug}`} aria-label={`Ver ${car.name}`}>
               <div className="card-image" style={{ backgroundImage: `linear-gradient(180deg, transparent 45%, #101010 100%), url(${car.image})` }}><span className="model-tag">{car.code}</span>{car.lead && <span className="stock-tag">★ DESTAQUE</span>}</div>
               <div className="card-body"><p className="card-owner"><span>{car.owner}</span><b aria-hidden="true">↗</b></p><h3>{car.name}</h3><div className="card-meta"><span>{car.years}</span><span>{car.power}</span></div></div>
             </Link>
@@ -96,7 +123,7 @@ export default function Home() {
       </section>
 
       <section className="story section" id="story"><p className="eyebrow"><span /> Juntos pela estrada</p><h2>MAIS DO QUE<br />UM <i>SÍMBOLO.</i></h2><p>A Type R Garage Portugal é para quem repara em cada detalhe: o som do VTEC Turbo, a sensação de uma redução perfeita e a estrada para casa depois de um passeio de domingo.</p><div className="story-rule" /></section>
-      <section className="join" id="join"><p className="eyebrow"><span /> O teu carro pertence aqui</p><h2>MANTÉM A<br /><i>LINHA VERMELHA</i> POR PERTO.</h2><a className="primary" href="mailto:hello@typergarage.pt">Fala connosco <span>→</span></a></section>
+      <section className="join" id="join"><p className="eyebrow"><span /> O teu carro pertence aqui</p><h2>MANTÉM A<br /><i>LINHA VERMELHA</i> POR PERTO.</h2><Link className="primary" href="/login">Criar perfil <span>→</span></Link></section>
       <footer><span>© 2026 TYPE R GARAGE PORTUGAL</span><span>HONDA E TYPE R SÃO MARCAS REGISTADAS DA HONDA MOTOR CO., LTD.</span><span>FOTOGRAFIAS: COLABORADORES DO WIKIMEDIA COMMONS</span></footer>
     </main>
   );

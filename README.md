@@ -1,4 +1,22 @@
-# vinext-starter
+# Type R Garage Portugal
+
+## Ativar registo e área de membros (Supabase)
+
+1. Cria um projeto em [Supabase](https://supabase.com/dashboard).
+2. No **SQL Editor**, executa todo o conteúdo de `supabase/schema.sql`.
+3. Em **Authentication → URL Configuration**, define o URL do site como `https://typerportugal.vercel.app` e adiciona `https://typerportugal.vercel.app/auth/callback` aos Redirect URLs.
+4. No Vercel, adiciona estas variáveis a Production, Preview e Development:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_SUBSTITUIR
+```
+
+Os valores estão em **Supabase → Project Settings → API Keys**. Para desenvolvimento local, copia `.env.example` para `.env.local` e substitui os valores.
+
+O schema ativa Row Level Security: cada membro só pode alterar os próprios carros e fotografias; visitantes apenas conseguem consultar carros publicados.
+
+## Desenvolvimento
 
 A clean full-stack starter running on
 [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
