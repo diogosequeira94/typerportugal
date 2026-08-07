@@ -10,7 +10,7 @@ const cars = [
     name: "Civic Type R FK8",
     owner: "O carro do Diogo",
     years: "2017–2021 · Pre-facelift",
-    power: "320 PS",
+    power: "320 CV",
     color: "Branco Championship",
     image:
       "/cars/diogo/fk8-03.webp",
@@ -21,7 +21,7 @@ const cars = [
     name: "Civic Type R FK2",
     owner: "Destaque da garagem",
     years: "2015–2017",
-    power: "310 PS",
+    power: "310 CV",
     color: "Preto Crystal",
     image:
       "/cars/fk2.jpg",
@@ -31,7 +31,7 @@ const cars = [
     name: "Civic Type R FL5",
     owner: "Destaque da garagem",
     years: "2023–presente",
-    power: "329 PS",
+    power: "329 CV",
     color: "Branco Championship",
     image:
       "/cars/fl5.jpg",

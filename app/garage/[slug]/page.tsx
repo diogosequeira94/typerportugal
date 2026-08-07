@@ -3,7 +3,7 @@ import CarGallery from "../../components/CarGallery";
 
 const builds = {
   fk8: {
-    code: "FK8", name: "Civic Type R FK8", title: "O PADRÃO BRANCO.", image: "/cars/fk8.jpg", owner: "Membro fundador", handle: "@typergarageportugal", location: "Centro (Lisboa)", year: "2018", colour: "Branco Championship", power: "320 PS", torque: "400 Nm", status: "Configuração de fábrica", note: "Um FK8 imaculado, anterior ao facelift, mantido exatamente como a Honda o idealizou — o ponto de partida para um projeto que dispensa apresentações.",
+    code: "FK8", name: "Civic Type R FK8", title: "O PADRÃO BRANCO.", image: "/cars/fk8.jpg", owner: "Membro fundador", handle: "@typergarageportugal", location: "Centro (Lisboa)", year: "2019", colour: "Championship White", power: "320 CV", torque: "400 Nm", status: "Configuração de fábrica", note: "Um FK8 imaculado, anterior ao facelift, mantido exatamente como a Honda o idealizou — o ponto de partida para um projeto que dispensa apresentações.",
     parts: [["Motor", "2.0L VTEC TURBO · K20C1"], ["Escape", "Escape de fábrica com saída tripla"], ["Admissão", "Sistema de admissão de fábrica"], ["Suspensão", "Sistema de amortecimento adaptativo"], ["Jantes", "Jantes de liga leve de fábrica de 20 polegadas"], ["Travões", "Sistema de travagem dianteiro Brembo"]],
     gallery: [
       { src: "/cars/diogo/fk8-01.webp", alt: "FK8 do Diogo visto de frente em Lisboa" },
@@ -15,12 +15,12 @@ const builds = {
     ],
   },
   fk2: {
-    code: "FK2", name: "Civic Type R FK2", title: "A PRIMEIRA ERA TURBO.", image: "/cars/fk2.jpg", owner: "Destaque da garagem", handle: "@typergarageportugal", location: null, year: "2016", colour: "Branco Championship", power: "310 PS", torque: "400 Nm", status: "Destaque da comunidade", note: "O Type R turbo, puro e determinado, que redefiniu o ritmo para uma nova era de desempenho Civic.",
+    code: "FK2", name: "Civic Type R FK2", title: "A PRIMEIRA ERA TURBO.", image: "/cars/fk2.jpg", owner: "Destaque da garagem", handle: "@typergarageportugal", location: null, year: "2016", colour: "Branco Championship", power: "310 CV", torque: "400 Nm", status: "Destaque da comunidade", note: "O Type R turbo, puro e determinado, que redefiniu o ritmo para uma nova era de desempenho Civic.",
     parts: [["Motor", "2.0L VTEC TURBO · K20C1"], ["Escape", "Escape central de fábrica"], ["Admissão", "Caixa de ar de fábrica de alto fluxo"], ["Suspensão", "Eixo dianteiro de dupla articulação"], ["Jantes", "Jantes de liga leve de 19 polegadas"], ["Travões", "Sistema de travagem dianteiro Brembo"]],
     gallery: [{ src: "/cars/fk2.jpg", alt: "Honda Civic Type R FK2" }],
   },
   fl5: {
-    code: "FL5", name: "Civic Type R FL5", title: "O PRÓXIMO ÁPICE.", image: "/cars/fl5.jpg", owner: "Destaque da garagem", handle: "@typergarageportugal", location: null, year: "2023", colour: "Branco Championship", power: "329 PS", torque: "420 Nm", status: "Destaque da comunidade", note: "Uma silhueta Type R mais limpa e madura, com a mesma dedicação à tração dianteira no seu ADN.",
+    code: "FL5", name: "Civic Type R FL5", title: "O PRÓXIMO ÁPICE.", image: "/cars/fl5.jpg", owner: "Destaque da garagem", handle: "@typergarageportugal", location: null, year: "2023", colour: "Branco Championship", power: "329 CV", torque: "420 Nm", status: "Destaque da comunidade", note: "Uma silhueta Type R mais limpa e madura, com a mesma dedicação à tração dianteira no seu ADN.",
     parts: [["Motor", "2.0L VTEC TURBO · K20C1"], ["Escape", "Escape de fábrica com saída tripla"], ["Admissão", "Admissão de ar frio de fábrica"], ["Suspensão", "Sistema de amortecimento adaptativo"], ["Jantes", "Jantes leves de liga de 19 polegadas"], ["Travões", "Sistema de travagem dianteiro Brembo"]],
     gallery: [{ src: "/cars/fl5.jpg", alt: "Honda Civic Type R FL5" }],
   },
