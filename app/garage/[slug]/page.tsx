@@ -3,7 +3,7 @@ import CarGallery from "../../components/CarGallery";
 
 const builds = {
   fk8: {
-    code: "FK8", name: "Civic Type R FK8", title: "O PADRÃO BRANCO.", image: "/cars/fk8.jpg", owner: "Membro fundador", handle: "@typergarageportugal", location: "Centro (Lisboa)", year: "2019", colour: "Championship White", power: "320 CV", torque: "400 Nm", status: "Configuração de fábrica", note: "Um FK8 imaculado, anterior ao facelift, mantido exatamente como a Honda o idealizou — o ponto de partida para um projeto que dispensa apresentações.",
+    code: "FK8", name: "Civic Type R FK8", title: "O PADRÃO BRANCO.", image: "/cars/diogo/fk8-03.webp", owner: "Membro fundador", handle: "@typergarageportugal", location: "Centro (Lisboa)", year: "2019", colour: "Championship White", power: "320 CV", torque: "400 Nm", status: "Configuração de fábrica", note: "Um FK8 imaculado, anterior ao facelift, mantido exatamente como a Honda o idealizou — o ponto de partida para um projeto que dispensa apresentações.",
     parts: [["Motor", "2.0L VTEC TURBO · K20C1"], ["Escape", "Escape de fábrica com saída tripla"], ["Admissão", "Sistema de admissão de fábrica"], ["Suspensão", "Sistema de amortecimento adaptativo"], ["Jantes", "Jantes de liga leve de fábrica de 20 polegadas"], ["Travões", "Sistema de travagem dianteiro Brembo"]],
     gallery: [
       { src: "/cars/diogo/fk8-01.webp", alt: "FK8 do Diogo visto de frente em Lisboa" },
