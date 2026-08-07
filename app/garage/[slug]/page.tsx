@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import CarGallery from "../../components/CarGallery";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
+import { getTypeRPreset } from "@/lib/type-r-models";
 
 type Build = {
   code: string; name: string; title: string; image: string; owner: string;
@@ -44,6 +45,7 @@ export default async function BuildPage({ params }: { params: Promise<{ slug: st
     const supabase = await createClient();
     const { data: car } = await supabase!.from("cars").select("*, car_photos(*)").eq("slug", slug).eq("status", "published").single();
     if (car) {
+      const preset = getTypeRPreset(car.generation);
       const photos = (car.car_photos ?? []).sort((a: { position: number }, b: { position: number }) => a.position - b.position);
       const gallery = photos.map((photo: { public_url: string }, index: number) => ({ src: photo.public_url, alt: `${car.model} ${car.generation}, fotografia ${index + 1}` }));
       build = {
@@ -53,7 +55,7 @@ export default async function BuildPage({ params }: { params: Promise<{ slug: st
         colour: car.color, power: `${car.power_cv} CV`, torque: car.torque_nm ? `${car.torque_nm} Nm` : "—",
         transmission: car.transmission, status: car.status === "published" ? "Perfil público" : "Rascunho",
         note: car.description || "Um Type R da comunidade portuguesa, partilhado pelo proprietário.",
-        parts: [["Motor", "2.0L VTEC TURBO"], ["Transmissão", car.transmission]], gallery,
+        parts: [["Motor", preset?.engine ?? "Motor Type R"], ["Transmissão", car.transmission]], gallery,
       };
     }
   }

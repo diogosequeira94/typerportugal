@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import UpcomingEvents from "./components/UpcomingEvents";
 import { createClient } from "@/lib/supabase/client";
+import { typeRPresets } from "@/lib/type-r-models";
 
 type CarCard = { code: string; slug: string; name: string; owner: string; years: string; power: string; color: string; image: string; lead?: boolean };
 
@@ -121,7 +122,7 @@ export default function Home() {
       <section className="garage section" id="garage">
         <div className="section-heading"><div><p className="eyebrow"><span /> Últimos carros adicionados</p><h2>A <i>GARAGEM.</i></h2></div><p>Os projetos mais recentes da comunidade, sempre com os novos carros primeiro.</p></div>
         <div className="filters" aria-label="Filtrar carros por geração">
-          {["Todos", "FK2", "FK8", "FL5"].map((item) => <button className={filter === item ? "active" : ""} onClick={() => { setFilter(item); setShowAllCars(false); }} key={item}>{item}</button>)}
+          {["Todos", ...typeRPresets.map((preset) => preset.code)].map((item) => <button className={filter === item ? "active" : ""} onClick={() => { setFilter(item); setShowAllCars(false); }} key={item}>{item}</button>)}
         </div>
         <div className="car-grid">
           {visibleCars.map((car) => <article className={`car-card ${car.lead ? "featured" : ""}`} key={car.slug}>
