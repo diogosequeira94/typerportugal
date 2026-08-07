@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type GalleryImage = {
@@ -51,6 +50,8 @@ export default function CarGallery({
     setIsOpen(true);
   };
 
+  if (images.length === 0) return null;
+
   return (
     <div className="side-gallery">
       <p className="eyebrow"><span /> Galeria do proprietário</p>
@@ -94,7 +95,7 @@ export default function CarGallery({
               }}
             >
               <div className="gallery-image-frame">
-                <Image src={images[activeIndex].src} alt={images[activeIndex].alt} fill sizes="100vw" priority />
+                <img src={images[activeIndex].src} alt={images[activeIndex].alt} />
               </div>
               {hasMultipleImages && (
                 <>
@@ -115,7 +116,7 @@ export default function CarGallery({
                     aria-current={index === activeIndex ? "true" : undefined}
                     key={`${image.src}-${index}`}
                   >
-                    <Image src={image.src} alt="" fill sizes="80px" />
+                    <img src={image.src} alt="" />
                   </button>
                 ))}
               </div>
