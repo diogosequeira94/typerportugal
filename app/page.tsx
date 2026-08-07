@@ -13,7 +13,7 @@ const cars = [
     power: "320 PS",
     color: "Branco Championship",
     image:
-      "/cars/fk8.jpg",
+      "/cars/diogo/fk8-03.webp",
     lead: true,
   },
   {

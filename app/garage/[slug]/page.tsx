@@ -5,7 +5,14 @@ const builds = {
   fk8: {
     code: "FK8", name: "Civic Type R FK8", title: "O PADRÃO BRANCO.", image: "/cars/fk8.jpg", owner: "Membro fundador", handle: "@typergarageportugal", location: "Centro (Lisboa)", year: "2018", colour: "Branco Championship", power: "320 PS", torque: "400 Nm", status: "Configuração de fábrica", note: "Um FK8 imaculado, anterior ao facelift, mantido exatamente como a Honda o idealizou — o ponto de partida para um projeto que dispensa apresentações.",
     parts: [["Motor", "2.0L VTEC TURBO · K20C1"], ["Escape", "Escape de fábrica com saída tripla"], ["Admissão", "Sistema de admissão de fábrica"], ["Suspensão", "Sistema de amortecimento adaptativo"], ["Jantes", "Jantes de liga leve de fábrica de 20 polegadas"], ["Travões", "Sistema de travagem dianteiro Brembo"]],
-    gallery: [{ src: "/cars/fk8.jpg", alt: "Honda Civic Type R FK8 branco" }, { src: "/cars/hero-fk8-flipped.png", alt: "Honda Civic Type R FK8 branco em estúdio" }],
+    gallery: [
+      { src: "/cars/diogo/fk8-01.webp", alt: "FK8 do Diogo visto de frente em Lisboa" },
+      { src: "/cars/diogo/fk8-02.webp", alt: "FK8 do Diogo numa estação de serviço" },
+      { src: "/cars/diogo/fk8-03.webp", alt: "FK8 do Diogo junto a palmeiras" },
+      { src: "/cars/diogo/fk8-04.webp", alt: "Traseira do FK8 do Diogo" },
+      { src: "/cars/diogo/fk8-05.webp", alt: "FK8 do Diogo estacionado em Lisboa" },
+      { src: "/cars/diogo/fk8-06.webp", alt: "Perspetiva traseira do FK8 do Diogo" },
+    ],
   },
   fk2: {
     code: "FK2", name: "Civic Type R FK2", title: "A PRIMEIRA ERA TURBO.", image: "/cars/fk2.jpg", owner: "Destaque da garagem", handle: "@typergarageportugal", location: null, year: "2016", colour: "Branco Championship", power: "310 PS", torque: "400 Nm", status: "Destaque da comunidade", note: "O Type R turbo, puro e determinado, que redefiniu o ritmo para uma nova era de desempenho Civic.",
