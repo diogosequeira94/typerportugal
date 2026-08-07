@@ -3,6 +3,20 @@
 
 create extension if not exists pgcrypto;
 
+create schema if not exists private;
+revoke all on schema private from public;
+grant usage on schema private to authenticated;
+
+-- A opção "automatic RLS" cria esta função no schema público. Ela só deve ser
+-- chamada pelo trigger interno do Supabase, nunca diretamente pela Data API.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    execute 'revoke execute on function public.rls_auto_enable() from public, anon, authenticated';
+  end if;
+end;
+$$;
+
 create table if not exists public.member_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
@@ -141,7 +155,7 @@ as $$
   select coalesce((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin', false);
 $$;
 
-create or replace function public.is_approved_member()
+create or replace function private.is_approved_member()
 returns boolean
 language sql
 stable
@@ -165,17 +179,19 @@ with check ((select public.is_admin()));
 
 drop policy if exists "Public can view published cars" on public.cars;
 create policy "Public can view published cars" on public.cars
-for select to anon, authenticated using (status = 'published');
+for select to anon using (status = 'published');
 
 drop policy if exists "Members can view own cars" on public.cars;
 create policy "Members can view own cars" on public.cars
-for select to authenticated using ((select auth.uid()) = owner_id or (select public.is_admin()));
+for select to authenticated using (
+  status = 'published' or (select auth.uid()) = owner_id or (select public.is_admin())
+);
 
 drop policy if exists "Members can create own cars" on public.cars;
 create policy "Members can create own cars" on public.cars
 for insert to authenticated with check (
   (select public.is_admin()) or
-  ((select public.is_approved_member()) and (select auth.uid()) = owner_id and status = 'pending')
+  ((select private.is_approved_member()) and (select auth.uid()) = owner_id and status = 'pending')
 );
 
 drop policy if exists "Members can update own cars" on public.cars;
@@ -183,7 +199,7 @@ create policy "Members can update own cars" on public.cars
 for update to authenticated using ((select auth.uid()) = owner_id or (select public.is_admin()))
 with check (
   (select public.is_admin()) or
-  ((select public.is_approved_member()) and (select auth.uid()) = owner_id and status = 'pending')
+  ((select private.is_approved_member()) and (select auth.uid()) = owner_id and status = 'pending')
 );
 
 drop policy if exists "Members can delete own cars" on public.cars;
@@ -192,19 +208,22 @@ for delete to authenticated using ((select auth.uid()) = owner_id or (select pub
 
 drop policy if exists "Public can view photos of published cars" on public.car_photos;
 create policy "Public can view photos of published cars" on public.car_photos
-for select to anon, authenticated using (
+for select to anon using (
   exists (select 1 from public.cars where cars.id = car_photos.car_id and cars.status = 'published')
 );
 
 drop policy if exists "Members can view own photos" on public.car_photos;
 create policy "Members can view own photos" on public.car_photos
-for select to authenticated using ((select auth.uid()) = owner_id or (select public.is_admin()));
+for select to authenticated using (
+  (select auth.uid()) = owner_id or (select public.is_admin()) or
+  exists (select 1 from public.cars where cars.id = car_photos.car_id and cars.status = 'published')
+);
 
 drop policy if exists "Members can create own photos" on public.car_photos;
 create policy "Members can create own photos" on public.car_photos
 for insert to authenticated with check (
   (select public.is_admin()) or (
-    (select public.is_approved_member()) and (select auth.uid()) = owner_id and
+    (select private.is_approved_member()) and (select auth.uid()) = owner_id and
     exists (select 1 from public.cars where cars.id = car_photos.car_id and cars.owner_id = (select auth.uid()) and cars.status = 'pending')
   )
 );
@@ -222,9 +241,12 @@ grant select on public.cars, public.car_photos to anon;
 grant select, insert, update, delete on public.cars, public.car_photos to authenticated;
 grant select, update on public.member_profiles to authenticated;
 revoke execute on function public.is_admin() from public, anon;
-revoke execute on function public.is_approved_member() from public, anon;
+revoke execute on function private.is_approved_member() from public, anon;
+revoke execute on function public.set_updated_at() from public, anon, authenticated;
+revoke execute on function public.handle_new_member() from public, anon, authenticated;
+revoke execute on function public.unpublish_inactive_member_cars() from public, anon, authenticated;
 grant execute on function public.is_admin() to authenticated;
-grant execute on function public.is_approved_member() to authenticated;
+grant execute on function private.is_approved_member() to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('car-photos', 'car-photos', true, 8388608, array['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
@@ -239,7 +261,7 @@ create policy "Members can upload own car photos" on storage.objects
 for insert to authenticated with check (
   bucket_id = 'car-photos' and (
     (select public.is_admin()) or
-    ((select public.is_approved_member()) and (storage.foldername(name))[1] = (select auth.uid()::text))
+    ((select private.is_approved_member()) and (storage.foldername(name))[1] = (select auth.uid()::text))
   )
 );
 
