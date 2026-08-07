@@ -53,12 +53,14 @@ const specs = [
 
 export default function Home() {
   const [filter, setFilter] = useState("Todos");
+  const [showAllCars, setShowAllCars] = useState(false);
   const [communityCars, setCommunityCars] = useState<CarCard[]>([]);
   const [accountLabel, setAccountLabel] = useState("Entrar");
   const [pendingMembers, setPendingMembers] = useState(0);
   const supabase = useMemo(() => createClient(), []);
-  const allCars = [...cars, ...communityCars];
-  const visibleCars = filter === "Todos" ? allCars : allCars.filter((car) => car.code === filter);
+  const allCars = [...communityCars, ...cars];
+  const filteredCars = filter === "Todos" ? allCars : allCars.filter((car) => car.code === filter);
+  const visibleCars = filter === "Todos" && !showAllCars ? filteredCars.slice(0, 3) : filteredCars;
 
   useEffect(() => {
     if (!supabase) return;
@@ -117,9 +119,9 @@ export default function Home() {
       <UpcomingEvents />
 
       <section className="garage section" id="garage">
-        <div className="section-heading"><div><p className="eyebrow"><span /> A coleção</p><h2>A <i>GARAGEM.</i></h2></div><p>Um catálogo vivo dos Civic Type R de Portugal — desde ícones imaculados a projetos cuidadosamente preparados.</p></div>
+        <div className="section-heading"><div><p className="eyebrow"><span /> Últimos carros adicionados</p><h2>A <i>GARAGEM.</i></h2></div><p>Os projetos mais recentes da comunidade, sempre com os novos carros primeiro.</p></div>
         <div className="filters" aria-label="Filtrar carros por geração">
-          {["Todos", "FK2", "FK8", "FL5"].map((item) => <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item}</button>)}
+          {["Todos", "FK2", "FK8", "FL5"].map((item) => <button className={filter === item ? "active" : ""} onClick={() => { setFilter(item); setShowAllCars(false); }} key={item}>{item}</button>)}
         </div>
         <div className="car-grid">
           {visibleCars.map((car) => <article className={`car-card ${car.lead ? "featured" : ""}`} key={car.slug}>
@@ -129,6 +131,7 @@ export default function Home() {
             </Link>
           </article>)}
         </div>
+        {filter === "Todos" && allCars.length > 3 && <div className="garage-feed-actions"><button type="button" onClick={() => setShowAllCars((current) => !current)}>{showAllCars ? "Mostrar os 3 mais recentes" : `Ver todos (${allCars.length})`} <span>{showAllCars ? "↑" : "↓"}</span></button></div>}
       </section>
 
       <section className="featured-build" id="featured">
