@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import UpcomingEvents from "./components/UpcomingEvents";
 
@@ -81,17 +82,17 @@ export default function Home() {
         </div>
         <div className="car-grid">
           {visibleCars.map((car) => <article className={`car-card ${car.lead ? "featured" : ""}`} key={car.code}>
-            <a className="car-card-link" href={`/garage/${car.code.toLowerCase()}`} aria-label={`Ver ${car.name}`}>
+            <Link className="car-card-link" href={`/garage/${car.code.toLowerCase()}`} aria-label={`Ver ${car.name}`}>
               <div className="card-image" style={{ backgroundImage: `linear-gradient(180deg, transparent 45%, #101010 100%), url(${car.image})` }}><span className="model-tag">{car.code}</span>{car.lead && <span className="stock-tag">★ DESTAQUE</span>}</div>
               <div className="card-body"><p className="card-owner"><span>{car.owner}</span><b aria-hidden="true">↗</b></p><h3>{car.name}</h3><div className="card-meta"><span>{car.years}</span><span>{car.power}</span></div></div>
-            </a>
+            </Link>
           </article>)}
         </div>
       </section>
 
       <section className="featured-build" id="featured">
         <div className="build-image" role="img" aria-label="Automóvel desportivo branco visto de perfil" />
-        <div className="build-copy"><p className="eyebrow"><span /> O primeiro da garagem</p><h2>O PADRÃO<br /><i>BRANCO.</i></h2><p className="build-description">Um FK8 Branco Championship, anterior ao facelift. Pura intenção de fábrica, caixa manual e todo o dramatismo que tornou esta geração inesquecível.</p><div className="spec-grid">{specs.map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div><a className="primary" href="/garage/fk8">Ver perfil completo <span>↗</span></a></div>
+        <div className="build-copy"><p className="eyebrow"><span /> O primeiro da garagem</p><h2>O PADRÃO<br /><i>BRANCO.</i></h2><p className="build-description">Um FK8 Branco Championship, anterior ao facelift. Pura intenção de fábrica, caixa manual e todo o dramatismo que tornou esta geração inesquecível.</p><div className="spec-grid">{specs.map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div><Link className="primary" href="/garage/fk8">Ver perfil completo <span>↗</span></Link></div>
       </section>
 
       <section className="story section" id="story"><p className="eyebrow"><span /> Juntos pela estrada</p><h2>MAIS DO QUE<br />UM <i>SÍMBOLO.</i></h2><p>A Type R Garage Portugal é para quem repara em cada detalhe: o som do VTEC Turbo, a sensação de uma redução perfeita e a estrada para casa depois de um passeio de domingo.</p><div className="story-rule" /></section>
