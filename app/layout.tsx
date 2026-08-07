@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Type R Garage Portugal | Built for the drive",
-  description: "A home for Portugal's Civic Type R community.",
+  title: "Type R Garage Portugal | Feito para conduzir",
+  description: "A casa da comunidade Civic Type R em Portugal.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="pt-PT">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
