@@ -62,7 +62,7 @@ export default function LoginPage() {
           <div className="auth-tabs"><button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Entrar</button><button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Criar conta</button></div>
           {!supabase ? <div className="setup-notice"><b>Falta ligar o Supabase</b><p>Adiciona as variáveis de ambiente indicadas no README para ativar o registo.</p></div> : <form onSubmit={handleSubmit}>
             {mode === "register" && <label>Nome<input required value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" /></label>}
-            {mode === "register" && <label>Número de WhatsApp<input required type="tel" placeholder="+351 900 000 000" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} autoComplete="tel" /></label>}
+            {mode === "register" && <label>Número de WhatsApp<input required type="tel" placeholder="+351 900 000 000" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} autoComplete="tel" /><small className="field-hint"><b>Porque pedimos?</b> Serve apenas para confirmar que pertences ao grupo de WhatsApp. Não fica público nem será usado para enviar mensagens.</small></label>}
             <label>Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
             <label>Palavra-passe<input required minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} /></label>
             {message && <p className="form-message" role="status">{message}</p>}
