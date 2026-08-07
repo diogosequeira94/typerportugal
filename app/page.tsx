@@ -59,8 +59,6 @@ export default function Home() {
         <a className="menu-button" href="#garage">Explore builds <span>↗</span></a>
       </nav>
 
-      <UpcomingEvents />
-
       <section className="hero" id="top">
         <div className="grid-noise" />
         <div className="hero-copy">
@@ -73,6 +71,8 @@ export default function Home() {
         <div className="hero-plate"><b>01</b><span>FEATURED BUILD</span><small>FK8 / STOCK / PT</small></div>
         <div className="hero-stats"><div><b>3</b><span>GENERATIONS</span></div><div><b>1</b><span>COMMUNITY</span></div><div><b>∞</b><span>ROADS AHEAD</span></div></div>
       </section>
+
+      <UpcomingEvents />
 
       <section className="garage section" id="garage">
         <div className="section-heading"><div><p className="eyebrow"><span /> The collection</p><h2>THE <i>GARAGE.</i></h2></div><p>A living catalogue of Portugal&apos;s Civic Type Rs — from untouched icons to carefully crafted builds.</p></div>
