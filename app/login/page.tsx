@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"error" | "success" | "">("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -21,6 +22,7 @@ export default function LoginPage() {
     if (!supabase) return;
     setLoading(true);
     setMessage("");
+    setMessageType("");
 
     if (mode === "register") {
       const { data, error } = await supabase.auth.signUp({
@@ -32,11 +34,15 @@ export default function LoginPage() {
         },
       });
       setLoading(false);
-      if (error) return setMessage(error.message);
+      if (error) {
+        setMessageType("error");
+        return setMessage(error.message);
+      }
       if (data.session) {
         router.push("/dashboard");
         router.refresh();
       } else {
+        setMessageType("success");
         setMessage("Conta criada. Confirma o email; depois, a adesão será validada pelo administrador do grupo.");
       }
       return;
@@ -44,7 +50,10 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) return setMessage("Email ou palavra-passe incorretos.");
+    if (error) {
+      setMessageType("error");
+      return setMessage("Email ou palavra-passe incorretos.");
+    }
     const next = new URLSearchParams(window.location.search).get("next");
     router.push(next?.startsWith("/") && !next.startsWith("//") ? next : "/dashboard");
     router.refresh();
@@ -65,7 +74,7 @@ export default function LoginPage() {
             {mode === "register" && <label>Número de WhatsApp<input required type="tel" placeholder="+351 900 000 000" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} autoComplete="tel" /><small className="field-hint"><b>Porque pedimos?</b> Serve apenas para confirmar que pertences ao grupo de WhatsApp. Não fica público nem será usado para enviar mensagens.</small></label>}
             <label>Email<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
             <label>Palavra-passe<input required minLength={8} type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} /></label>
-            {message && <p className="form-message" role="status">{message}</p>}
+            {message && <p className={`form-message ${messageType}`} role="status">{message}</p>}
             <button className="primary account-primary" disabled={loading}>{loading ? "A processar…" : mode === "login" ? "Entrar na garagem" : "Criar a minha conta"}<span>→</span></button>
           </form>}
         </div>
