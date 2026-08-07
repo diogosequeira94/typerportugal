@@ -81,8 +81,10 @@ export default function Home() {
         </div>
         <div className="car-grid">
           {visibleCars.map((car) => <article className={`car-card ${car.lead ? "featured" : ""}`} key={car.code}>
-            <div className="card-image" style={{ backgroundImage: `linear-gradient(180deg, transparent 45%, #101010 100%), url(${car.image})` }}><span className="model-tag">{car.code}</span>{car.lead && <span className="stock-tag">★ DESTAQUE</span>}</div>
-            <div className="card-body"><p>{car.owner}</p><h3>{car.name}</h3><div className="card-meta"><span>{car.years}</span><span>{car.power}</span></div><a href={`/garage/${car.code.toLowerCase()}`}>Ver carro <b>↗</b></a></div>
+            <a className="car-card-link" href={`/garage/${car.code.toLowerCase()}`} aria-label={`Ver ${car.name}`}>
+              <div className="card-image" style={{ backgroundImage: `linear-gradient(180deg, transparent 45%, #101010 100%), url(${car.image})` }}><span className="model-tag">{car.code}</span>{car.lead && <span className="stock-tag">★ DESTAQUE</span>}</div>
+              <div className="card-body"><p className="card-owner"><span>{car.owner}</span><b aria-hidden="true">↗</b></p><h3>{car.name}</h3><div className="card-meta"><span>{car.years}</span><span>{car.power}</span></div></div>
+            </a>
           </article>)}
         </div>
       </section>
