@@ -237,6 +237,12 @@ for delete to authenticated using (
   )
 );
 
+drop policy if exists "Admins can update photo ownership" on public.car_photos;
+create policy "Admins can update photo ownership" on public.car_photos
+for update to authenticated
+using ((select public.is_admin()))
+with check ((select public.is_admin()));
+
 grant select on public.cars, public.car_photos to anon;
 grant select, insert, update, delete on public.cars, public.car_photos to authenticated;
 grant select, update on public.member_profiles to authenticated;
@@ -268,5 +274,13 @@ for insert to authenticated with check (
 drop policy if exists "Members can delete own car photos" on storage.objects;
 create policy "Members can delete own car photos" on storage.objects
 for delete to authenticated using (
-  bucket_id = 'car-photos' and (owner_id = (select auth.uid()::text) or (select public.is_admin()))
+  bucket_id = 'car-photos' and (
+    owner_id = (select auth.uid()::text) or
+    (select public.is_admin()) or
+    exists (
+      select 1 from public.car_photos
+      where car_photos.storage_path = storage.objects.name
+        and car_photos.owner_id = (select auth.uid())
+    )
+  )
 );

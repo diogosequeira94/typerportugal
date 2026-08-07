@@ -15,6 +15,7 @@ type Car = {
   cover_image_url: string | null; car_photos: Photo[];
 };
 type MemberProfile = { id: string; email: string; name: string; whatsapp: string; status: "pending" | "approved" | "rejected"; created_at: string };
+type OwnerMode = "self" | "member";
 
 type FormState = {
   owner_name: string; model: string; generation: string; year: string; color: string;
@@ -38,6 +39,8 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
   const supabase = useMemo(() => createClient(), []);
   const [cars, setCars] = useState<Car[]>([]);
   const [members, setMembers] = useState<MemberProfile[]>([]);
+  const [ownerMode, setOwnerMode] = useState<OwnerMode>("self");
+  const [selectedOwnerId, setSelectedOwnerId] = useState("");
   const [editing, setEditing] = useState<Car | null>(null);
   const [form, setForm] = useState<FormState>(() => emptyForm(user.name));
   const [files, setFiles] = useState<File[]>([]);
@@ -45,6 +48,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const pendingMemberCount = members.filter((member) => member.status === "pending").length;
+  const approvedMembers = members.filter((member) => member.status === "approved");
 
   const loadCars = useCallback(async () => {
     if (!supabase) return;
@@ -88,6 +92,11 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
 
   function startEdit(car: Car) {
     setEditing(car);
+    if (user.isAdmin) {
+      const isOwnCar = car.owner_id === user.id;
+      setOwnerMode(isOwnCar ? "self" : "member");
+      setSelectedOwnerId(isOwnCar ? "" : car.owner_id);
+    }
     setForm({
       owner_name: car.owner_name, model: car.model, generation: car.generation,
       year: String(car.year), color: car.color, power_cv: String(car.power_cv),
@@ -99,14 +108,26 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
   }
 
   function resetForm() {
-    setEditing(null); setForm(emptyForm(user.name)); setFiles([]); setMessage("");
+    setEditing(null); setOwnerMode("self"); setSelectedOwnerId("");
+    setForm(emptyForm(user.name)); setFiles([]); setMessage("");
   }
 
-  async function uploadPhotos(carId: string, selectedFiles: File[]) {
+  function chooseOwnerMode(mode: OwnerMode) {
+    setOwnerMode(mode);
+    setSelectedOwnerId("");
+    setForm((current) => ({ ...current, owner_name: mode === "self" ? user.name : "" }));
+  }
+
+  function chooseMemberOwner(memberId: string) {
+    setSelectedOwnerId(memberId);
+    const member = approvedMembers.find((item) => item.id === memberId);
+    if (member) setForm((current) => ({ ...current, owner_name: member.name }));
+  }
+
+  async function uploadPhotos(carId: string, selectedFiles: File[], photoOwnerId: string) {
     if (!supabase || selectedFiles.length === 0) return [];
     const uploaded: { storage_path: string; public_url: string; position: number }[] = [];
     const currentCount = editing?.car_photos?.length ?? 0;
-    const photoOwnerId = editing?.owner_id ?? user.id;
 
     for (const [index, file] of selectedFiles.entries()) {
       if (!file.type.startsWith("image/") || file.size > 8 * 1024 * 1024) throw new Error("Cada fotografia deve ser uma imagem até 8 MB.");
@@ -128,6 +149,8 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
     if (!supabase) return;
     setSaving(true); setMessage("");
     try {
+      const targetOwnerId = user.isAdmin && ownerMode === "member" ? selectedOwnerId : user.id;
+      if (!targetOwnerId) throw new Error("Seleciona a conta do proprietário antes de guardar o carro.");
       const payload = {
         owner_name: form.owner_name.trim(), model: form.model.trim(),
         generation: form.generation.trim().toUpperCase(), year: Number(form.year), color: form.color.trim(),
@@ -138,17 +161,25 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
       };
       let carId = editing?.id;
       if (editing) {
-        let query = supabase.from("cars").update(payload).eq("id", editing.id);
+        const updatePayload = user.isAdmin ? { ...payload, owner_id: targetOwnerId } : payload;
+        let query = supabase.from("cars").update(updatePayload).eq("id", editing.id);
         if (!user.isAdmin) query = query.eq("owner_id", user.id);
         const { error } = await query;
         if (error) throw error;
+        if (user.isAdmin && targetOwnerId !== editing.owner_id) {
+          const { error: photoOwnerError } = await supabase.from("car_photos").update({ owner_id: targetOwnerId }).eq("car_id", editing.id);
+          if (photoOwnerError) {
+            await supabase.from("cars").update({ owner_id: editing.owner_id }).eq("id", editing.id);
+            throw photoOwnerError;
+          }
+        }
       } else {
         const slug = `${slugify(`${form.generation}-${form.owner_name}`)}-${crypto.randomUUID().slice(0, 6)}`;
-        const { data, error } = await supabase.from("cars").insert({ ...payload, owner_id: user.id, slug }).select("id").single();
+        const { data, error } = await supabase.from("cars").insert({ ...payload, owner_id: targetOwnerId, slug }).select("id").single();
         if (error) throw error;
         carId = data.id;
       }
-      const uploaded = await uploadPhotos(carId!, files);
+      const uploaded = await uploadPhotos(carId!, files, targetOwnerId);
       if (uploaded.length && !editing?.cover_image_url) {
         let query = supabase.from("cars").update({ cover_image_url: uploaded[0].public_url }).eq("id", carId!);
         if (!user.isAdmin) query = query.eq("owner_id", user.id);
@@ -226,6 +257,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
     <div className="dashboard-grid">
       <section className="car-editor"><div className="editor-title"><div><p className="eyebrow"><span /> {editing ? "Editar carro" : "Novo carro"}</p><h2>{editing ? `${editing.generation} · ${editing.model}` : "ADICIONAR CARRO"}</h2></div>{editing && <button onClick={resetForm}>Cancelar</button>}</div>
         <form onSubmit={saveCar}>
+          {user.isAdmin && <fieldset className="owner-assignment"><legend>De quem é este carro?</legend><div className="owner-choice-grid"><label className={ownerMode === "self" ? "active" : ""}><input type="radio" name="owner_mode" checked={ownerMode === "self"} onChange={() => chooseOwnerMode("self")} /><span><b>O meu carro</b><small>Fica associado à tua conta de administrador.</small></span></label><label className={ownerMode === "member" ? "active" : ""}><input type="radio" name="owner_mode" checked={ownerMode === "member"} onChange={() => chooseOwnerMode("member")} /><span><b>Carro de um amigo</b><small>Escolhe um membro aprovado da comunidade.</small></span></label></div>{ownerMode === "member" && <label className="owner-member-select">Conta do proprietário<select value={selectedOwnerId} required onChange={(event) => chooseMemberOwner(event.target.value)}><option value="">Selecionar membro aprovado…</option>{approvedMembers.map((member) => <option key={member.id} value={member.id}>{member.name} · {member.email}</option>)}</select>{approvedMembers.length === 0 && <small>Aprova primeiro a conta do teu amigo para poderes associar-lhe o carro.</small>}</label>}</fieldset>}
           <div className="form-grid"><label>Nome do proprietário<input name="owner_name" required value={form.owner_name} onChange={updateField} /></label><label>Geração<input name="generation" required placeholder="FK8" value={form.generation} onChange={updateField} /></label><label className="wide">Modelo<input name="model" required value={form.model} onChange={updateField} /></label><label>Ano<input name="year" required type="number" min="1997" max="2035" value={form.year} onChange={updateField} /></label><label>Cor<input name="color" required placeholder="Championship White" value={form.color} onChange={updateField} /></label><label>Potência (CV)<input name="power_cv" required type="number" min="1" value={form.power_cv} onChange={updateField} /></label><label>Binário (Nm)<input name="torque_nm" type="number" min="1" value={form.torque_nm} onChange={updateField} /></label><label className="wide">Transmissão<input name="transmission" required value={form.transmission} onChange={updateField} /></label><label className="wide">Localização<input name="location" placeholder="Centro (Lisboa)" value={form.location} onChange={updateField} /></label><label>Instagram<input name="instagram" placeholder="nome.utilizador" value={form.instagram} onChange={updateField} /></label><label>Facebook (opcional)<input name="facebook" placeholder="https://facebook.com/..." value={form.facebook} onChange={updateField} /></label><label className="wide">Descrição<textarea name="description" rows={5} value={form.description} onChange={updateField} /></label><label className="wide">Fotografias<input type="file" accept="image/*" multiple onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 8))} /><small>Até 8 imagens de 8 MB cada. As novas fotos são adicionadas às existentes.</small></label>{user.isAdmin ? <label className="wide">Estado<select name="status" value={form.status} onChange={updateField}><option value="pending">Pendente</option><option value="published">Publicado</option><option value="rejected">Rejeitado</option></select></label> : <p className="submission-note wide">Os carros novos e todas as alterações são enviados para aprovação antes de aparecerem publicamente.</p>}</div>
           {message && <p className="form-message" role="status">{message}</p>}<button className="primary account-primary" disabled={saving}>{saving ? "A guardar…" : editing ? "Guardar alterações" : "Adicionar à garagem"}<span>→</span></button>
         </form>
