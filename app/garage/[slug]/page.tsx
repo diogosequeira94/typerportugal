@@ -1,4 +1,5 @@
 import Link from "next/link";
+import UpcomingEvents from "../../components/UpcomingEvents";
 
 const builds = {
   fk8: {
@@ -20,6 +21,7 @@ export default async function BuildPage({ params }: { params: Promise<{ slug: st
   const build = builds[slug as keyof typeof builds] ?? builds.fk8;
   return <main className="profile-page">
     <nav className="nav"><Link className="brand" href="/"><span className="brand-mark">R</span><span>TYPE R <em>GARAGE</em><small>PORTUGAL</small></span></Link><Link className="back-link" href="/#garage">← Back to garage</Link></nav>
+    <UpcomingEvents />
     <section className="profile-hero">
       <div className="profile-image" style={{ backgroundImage: `linear-gradient(90deg,#080809 0%,transparent 70%),linear-gradient(0deg,#080809 0%,transparent 55%),url(${build.image})` }} />
       <div className="profile-heading"><p className="eyebrow"><span /> Build profile · {build.code}</p><h1>{build.title.split(" ").slice(0,2).join(" ")}<br /><i>{build.title.split(" ").slice(2).join(" ")}</i></h1><div className="profile-key"><span>{build.name}</span><b>{build.year}</b><b>{build.colour}</b></div></div>

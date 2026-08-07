@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import UpcomingEvents from "./components/UpcomingEvents";
 
 const cars = [
   {
@@ -57,6 +58,8 @@ export default function Home() {
         <div className="nav-links"><a href="#garage">Garage</a><a href="#story">The club</a><a href="#join">Join us</a></div>
         <a className="menu-button" href="#garage">Explore builds <span>↗</span></a>
       </nav>
+
+      <UpcomingEvents />
 
       <section className="hero" id="top">
         <div className="grid-noise" />
