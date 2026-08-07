@@ -31,7 +31,7 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-export default function DashboardClient({ user }: { user: { id: string; email: string; name: string } }) {
+export default function DashboardClient({ user }: { user: { id: string; email: string; name: string; isAdmin: boolean } }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [cars, setCars] = useState<Car[]>([]);
@@ -44,23 +44,24 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
 
   const loadCars = useCallback(async () => {
     if (!supabase) return;
-    const { data, error } = await supabase.from("cars").select("*, car_photos(*)")
-      .eq("owner_id", user.id).order("created_at", { ascending: false });
+    let query = supabase.from("cars").select("*, car_photos(*)").order("created_at", { ascending: false });
+    if (!user.isAdmin) query = query.eq("owner_id", user.id);
+    const { data, error } = await query;
     setLoading(false);
     if (error) return setMessage(error.message);
     setCars((data as Car[]) ?? []);
-  }, [supabase, user.id]);
+  }, [supabase, user.id, user.isAdmin]);
 
   useEffect(() => {
     if (!supabase) return;
-    void supabase.from("cars").select("*, car_photos(*)")
-      .eq("owner_id", user.id).order("created_at", { ascending: false })
-      .then(({ data, error }) => {
+    let query = supabase.from("cars").select("*, car_photos(*)").order("created_at", { ascending: false });
+    if (!user.isAdmin) query = query.eq("owner_id", user.id);
+    void query.then(({ data, error }) => {
         setLoading(false);
         if (error) setMessage(error.message);
         else setCars((data as Car[]) ?? []);
       });
-  }, [supabase, user.id]);
+  }, [supabase, user.id, user.isAdmin]);
 
   function updateField(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
@@ -86,6 +87,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
     if (!supabase || selectedFiles.length === 0) return [];
     const uploaded: { storage_path: string; public_url: string; position: number }[] = [];
     const currentCount = editing?.car_photos?.length ?? 0;
+    const photoOwnerId = editing?.owner_id ?? user.id;
 
     for (const [index, file] of selectedFiles.entries()) {
       if (!file.type.startsWith("image/") || file.size > 8 * 1024 * 1024) throw new Error("Cada fotografia deve ser uma imagem até 8 MB.");
@@ -97,7 +99,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
       uploaded.push({ storage_path: path, public_url: data.publicUrl, position: currentCount + index });
     }
 
-    const { error } = await supabase.from("car_photos").insert(uploaded.map((photo) => ({ ...photo, car_id: carId, owner_id: user.id })));
+    const { error } = await supabase.from("car_photos").insert(uploaded.map((photo) => ({ ...photo, car_id: carId, owner_id: photoOwnerId })));
     if (error) throw error;
     return uploaded;
   }
@@ -108,7 +110,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
     setSaving(true); setMessage("");
     try {
       const payload = {
-        owner_id: user.id, owner_name: form.owner_name.trim(), model: form.model.trim(),
+        owner_name: form.owner_name.trim(), model: form.model.trim(),
         generation: form.generation.trim().toUpperCase(), year: Number(form.year), color: form.color.trim(),
         power_cv: Number(form.power_cv), torque_nm: form.torque_nm ? Number(form.torque_nm) : null,
         transmission: form.transmission.trim(), location: form.location.trim() || null,
@@ -117,17 +119,21 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
       };
       let carId = editing?.id;
       if (editing) {
-        const { error } = await supabase.from("cars").update(payload).eq("id", editing.id).eq("owner_id", user.id);
+        let query = supabase.from("cars").update(payload).eq("id", editing.id);
+        if (!user.isAdmin) query = query.eq("owner_id", user.id);
+        const { error } = await query;
         if (error) throw error;
       } else {
         const slug = `${slugify(`${form.generation}-${form.owner_name}`)}-${crypto.randomUUID().slice(0, 6)}`;
-        const { data, error } = await supabase.from("cars").insert({ ...payload, slug }).select("id").single();
+        const { data, error } = await supabase.from("cars").insert({ ...payload, owner_id: user.id, slug }).select("id").single();
         if (error) throw error;
         carId = data.id;
       }
       const uploaded = await uploadPhotos(carId!, files);
       if (uploaded.length && !editing?.cover_image_url) {
-        const { error } = await supabase.from("cars").update({ cover_image_url: uploaded[0].public_url }).eq("id", carId!).eq("owner_id", user.id);
+        let query = supabase.from("cars").update({ cover_image_url: uploaded[0].public_url }).eq("id", carId!);
+        if (!user.isAdmin) query = query.eq("owner_id", user.id);
+        const { error } = await query;
         if (error) throw error;
       }
       resetForm(); await loadCars(); setMessage("Carro guardado com sucesso.");
@@ -141,7 +147,9 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
     setMessage("");
     const paths = car.car_photos?.map((photo) => photo.storage_path) ?? [];
     if (paths.length) await supabase.storage.from("car-photos").remove(paths);
-    const { error } = await supabase.from("cars").delete().eq("id", car.id).eq("owner_id", user.id);
+    let query = supabase.from("cars").delete().eq("id", car.id);
+    if (!user.isAdmin) query = query.eq("owner_id", user.id);
+    const { error } = await query;
     if (error) return setMessage(error.message);
     if (editing?.id === car.id) resetForm();
     await loadCars();
@@ -151,11 +159,15 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
     if (!supabase || !window.confirm("Remover esta fotografia?")) return;
     const { error: storageError } = await supabase.storage.from("car-photos").remove([photo.storage_path]);
     if (storageError) return setMessage(storageError.message);
-    const { error } = await supabase.from("car_photos").delete().eq("id", photo.id).eq("owner_id", user.id);
+    let deleteQuery = supabase.from("car_photos").delete().eq("id", photo.id);
+    if (!user.isAdmin) deleteQuery = deleteQuery.eq("owner_id", user.id);
+    const { error } = await deleteQuery;
     if (error) return setMessage(error.message);
     if (car.cover_image_url === photo.public_url) {
       const replacement = car.car_photos.find((item) => item.id !== photo.id)?.public_url ?? null;
-      await supabase.from("cars").update({ cover_image_url: replacement }).eq("id", car.id).eq("owner_id", user.id);
+      let coverQuery = supabase.from("cars").update({ cover_image_url: replacement }).eq("id", car.id);
+      if (!user.isAdmin) coverQuery = coverQuery.eq("owner_id", user.id);
+      await coverQuery;
     }
     await loadCars();
   }
@@ -165,8 +177,8 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
   }
 
   return <main className="dashboard-page">
-    <nav className="dashboard-nav"><Link className="brand" href="/"><span className="brand-mark">R</span><span>TYPE R <em>GARAGE</em><small>PORTUGAL</small></span></Link><div><span>{user.email}</span><button onClick={signOut}>Sair</button></div></nav>
-    <header className="dashboard-header"><div><p className="eyebrow"><span /> Área de membros</p><h1>A MINHA <i>GARAGEM.</i></h1></div><p>Adiciona os teus carros, mantém os detalhes atualizados e decide quando ficam públicos.</p></header>
+    <nav className="dashboard-nav"><Link className="brand" href="/"><span className="brand-mark">R</span><span>TYPE R <em>GARAGE</em><small>PORTUGAL</small></span></Link><div>{user.isAdmin && <b className="admin-badge">Administrador</b>}<span>{user.email}</span><button onClick={signOut}>Sair</button></div></nav>
+    <header className="dashboard-header"><div><p className="eyebrow"><span /> {user.isAdmin ? "Administração" : "Área de membros"}</p><h1>{user.isAdmin ? <>GESTÃO DA <i>GARAGEM.</i></> : <>A MINHA <i>GARAGEM.</i></>}</h1></div><p>{user.isAdmin ? "Consulta, edita e remove qualquer carro submetido pela comunidade." : "Adiciona os teus carros, mantém os detalhes atualizados e decide quando ficam públicos."}</p></header>
     <div className="dashboard-grid">
       <section className="car-editor"><div className="editor-title"><div><p className="eyebrow"><span /> {editing ? "Editar carro" : "Novo carro"}</p><h2>{editing ? `${editing.generation} · ${editing.model}` : "ADICIONAR CARRO"}</h2></div>{editing && <button onClick={resetForm}>Cancelar</button>}</div>
         <form onSubmit={saveCar}>
@@ -174,7 +186,7 @@ export default function DashboardClient({ user }: { user: { id: string; email: s
           {message && <p className="form-message" role="status">{message}</p>}<button className="primary account-primary" disabled={saving}>{saving ? "A guardar…" : editing ? "Guardar alterações" : "Adicionar à garagem"}<span>→</span></button>
         </form>
       </section>
-      <section className="member-cars"><p className="eyebrow"><span /> Os meus carros</p>{loading ? <p className="empty-cars">A carregar…</p> : cars.length === 0 ? <p className="empty-cars">Ainda não tens carros. Preenche o formulário para adicionares o primeiro.</p> : cars.map((car) => <article className="member-car" key={car.id}><div className="member-car-image" style={{ backgroundImage: car.cover_image_url ? `url(${car.cover_image_url})` : undefined }}><span>{car.status === "published" ? "Publicado" : "Rascunho"}</span></div><div className="member-car-copy"><small>{car.year} · {car.color}</small><h3>{car.generation} · {car.model}</h3><p>{car.power_cv} CV{car.location ? ` · ${car.location}` : ""}</p><div className="member-actions"><button onClick={() => startEdit(car)}>Editar</button>{car.status === "published" && <Link href={`/garage/${car.slug}`}>Ver perfil ↗</Link>}<button className="danger" onClick={() => deleteCar(car)}>Remover</button></div>{car.car_photos?.length > 0 && <div className="photo-strip">{car.car_photos.sort((a,b) => a.position - b.position).map((photo) => <button title="Remover fotografia" onClick={() => deletePhoto(photo, car)} key={photo.id} style={{ backgroundImage: `url(${photo.public_url})` }}><span>×</span></button>)}</div>}</div></article>)}</section>
+      <section className="member-cars"><p className="eyebrow"><span /> {user.isAdmin ? "Todos os carros" : "Os meus carros"}</p>{loading ? <p className="empty-cars">A carregar…</p> : cars.length === 0 ? <p className="empty-cars">Ainda não existem carros nesta garagem.</p> : cars.map((car) => <article className="member-car" key={car.id}><div className="member-car-image" style={{ backgroundImage: car.cover_image_url ? `url(${car.cover_image_url})` : undefined }}><span>{car.status === "published" ? "Publicado" : "Rascunho"}</span></div><div className="member-car-copy"><small>{car.year} · {car.color}{user.isAdmin ? ` · ${car.owner_name}` : ""}</small><h3>{car.generation} · {car.model}</h3><p>{car.power_cv} CV{car.location ? ` · ${car.location}` : ""}</p><div className="member-actions"><button onClick={() => startEdit(car)}>Editar</button>{car.status === "published" && <Link href={`/garage/${car.slug}`}>Ver perfil ↗</Link>}<button className="danger" onClick={() => deleteCar(car)}>Remover</button></div>{car.car_photos?.length > 0 && <div className="photo-strip">{car.car_photos.sort((a,b) => a.position - b.position).map((photo) => <button title="Remover fotografia" onClick={() => deletePhoto(photo, car)} key={photo.id} style={{ backgroundImage: `url(${photo.public_url})` }}><span>×</span></button>)}</div>}</div></article>)}</section>
     </div>
   </main>;
 }

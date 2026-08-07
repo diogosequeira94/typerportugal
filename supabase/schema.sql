@@ -59,13 +59,23 @@ for each row execute function public.set_updated_at();
 alter table public.cars enable row level security;
 alter table public.car_photos enable row level security;
 
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce((auth.jwt() -> 'app_metadata' ->> 'role') = 'admin', false);
+$$;
+
 drop policy if exists "Public can view published cars" on public.cars;
 create policy "Public can view published cars" on public.cars
 for select to anon, authenticated using (status = 'published');
 
 drop policy if exists "Members can view own cars" on public.cars;
 create policy "Members can view own cars" on public.cars
-for select to authenticated using ((select auth.uid()) = owner_id);
+for select to authenticated using ((select auth.uid()) = owner_id or (select public.is_admin()));
 
 drop policy if exists "Members can create own cars" on public.cars;
 create policy "Members can create own cars" on public.cars
@@ -73,12 +83,12 @@ for insert to authenticated with check ((select auth.uid()) = owner_id);
 
 drop policy if exists "Members can update own cars" on public.cars;
 create policy "Members can update own cars" on public.cars
-for update to authenticated using ((select auth.uid()) = owner_id)
-with check ((select auth.uid()) = owner_id);
+for update to authenticated using ((select auth.uid()) = owner_id or (select public.is_admin()))
+with check ((select auth.uid()) = owner_id or (select public.is_admin()));
 
 drop policy if exists "Members can delete own cars" on public.cars;
 create policy "Members can delete own cars" on public.cars
-for delete to authenticated using ((select auth.uid()) = owner_id);
+for delete to authenticated using ((select auth.uid()) = owner_id or (select public.is_admin()));
 
 drop policy if exists "Public can view photos of published cars" on public.car_photos;
 create policy "Public can view photos of published cars" on public.car_photos
@@ -88,18 +98,20 @@ for select to anon, authenticated using (
 
 drop policy if exists "Members can view own photos" on public.car_photos;
 create policy "Members can view own photos" on public.car_photos
-for select to authenticated using ((select auth.uid()) = owner_id);
+for select to authenticated using ((select auth.uid()) = owner_id or (select public.is_admin()));
 
 drop policy if exists "Members can create own photos" on public.car_photos;
 create policy "Members can create own photos" on public.car_photos
 for insert to authenticated with check (
-  (select auth.uid()) = owner_id and
-  exists (select 1 from public.cars where cars.id = car_photos.car_id and cars.owner_id = (select auth.uid()))
+  (select public.is_admin()) or (
+    (select auth.uid()) = owner_id and
+    exists (select 1 from public.cars where cars.id = car_photos.car_id and cars.owner_id = (select auth.uid()))
+  )
 );
 
 drop policy if exists "Members can delete own photos" on public.car_photos;
 create policy "Members can delete own photos" on public.car_photos
-for delete to authenticated using ((select auth.uid()) = owner_id);
+for delete to authenticated using ((select auth.uid()) = owner_id or (select public.is_admin()));
 
 grant select on public.cars, public.car_photos to anon;
 grant select, insert, update, delete on public.cars, public.car_photos to authenticated;
@@ -115,11 +127,11 @@ for select to anon, authenticated using (bucket_id = 'car-photos');
 drop policy if exists "Members can upload own car photos" on storage.objects;
 create policy "Members can upload own car photos" on storage.objects
 for insert to authenticated with check (
-  bucket_id = 'car-photos' and (storage.foldername(name))[1] = (select auth.uid()::text)
+  bucket_id = 'car-photos' and ((storage.foldername(name))[1] = (select auth.uid()::text) or (select public.is_admin()))
 );
 
 drop policy if exists "Members can delete own car photos" on storage.objects;
 create policy "Members can delete own car photos" on storage.objects
 for delete to authenticated using (
-  bucket_id = 'car-photos' and owner_id = (select auth.uid()::text)
+  bucket_id = 'car-photos' and (owner_id = (select auth.uid()::text) or (select public.is_admin()))
 );

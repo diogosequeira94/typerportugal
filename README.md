@@ -16,6 +16,18 @@ Os valores estão em **Supabase → Project Settings → API Keys**. Para desenv
 
 O schema ativa Row Level Security: cada membro só pode alterar os próprios carros e fotografias; visitantes apenas conseguem consultar carros publicados.
 
+### Promover a conta mestra
+
+Cria primeiro a tua conta normalmente no site. Depois executa no **SQL Editor** do Supabase, substituindo o email:
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+where email = 'O-TEU-EMAIL';
+```
+
+Termina sessão e volta a entrar. A conta passa a mostrar a área **Administração**, onde pode consultar, editar e remover carros de qualquer membro. A palavra-passe nunca fica guardada no código.
+
 ## Desenvolvimento
 
 A clean full-stack starter running on

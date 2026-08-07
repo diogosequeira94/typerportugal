@@ -15,5 +15,5 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase!.auth.getUser();
   if (!user) redirect("/login?next=/dashboard");
 
-  return <DashboardClient user={{ id: user.id, email: user.email ?? "", name: String(user.user_metadata?.name ?? "Membro Type R") }} />;
+  return <DashboardClient user={{ id: user.id, email: user.email ?? "", name: String(user.user_metadata?.name ?? "Membro Type R"), isAdmin: user.app_metadata?.role === "admin" }} />;
 }
